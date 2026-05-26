@@ -14,16 +14,28 @@ typedef struct {
 } Section;
 
 typedef struct {
+    ELFSymbol header;
+    StrView name;
+} Symbol;
+
+typedef struct {
     const char *filename;
     char *content;
     size_t size;
+
     ELFHeader elf_header;
+
     Array(Section) sections;
+    const Section *section_string_table;
+    const Section *symbol_string_table;
+
+    Array(Symbol) symbols;
 } Object;
 
 Object *object_create(const char *filename);
 void object_destroy(Object *obj);
 bool object_parse(Object *obj);
+const Section *object_get_section_by_type(const Object *obj, u32 type);
 
 /* parse.c */
 

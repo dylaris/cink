@@ -9,6 +9,9 @@ int main(void)
     arrforeach(Section, obj->sections) {
         printf("[%d]: '"svfmt"'\n", arroff(obj->sections, it), svarg(it->name));
     }
+    arrforeach(Symbol, obj->symbols) {
+        printf("[%d]: '"svfmt"'\n", arroff(obj->symbols, it), svarg(it->name));
+    }
 
     object_destroy(obj);
     return 0;

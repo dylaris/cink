@@ -36,3 +36,13 @@ void object_destroy(Object *obj)
     if (obj->sections) arrfree(obj->sections);
     free(obj);
 }
+
+const Section *object_get_section_by_type(const Object *obj, u32 type)
+{
+    arrforeach(Section, obj->sections) {
+        if (it->header.sh_type == type) {
+            return it;
+        }
+    }
+    return NULL;
+}
