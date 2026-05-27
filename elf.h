@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define    ELFMAG "\177ELF"
+#define ELFMAG "\177ELF"
 #define EI_NIDENT 16
 
 typedef struct {
@@ -27,6 +27,8 @@ typedef struct {
 #define SHT_PROGBITS 1         /* Program data                      */
 #define SHT_SYMTAB   2         /* Symbol table                      */
 #define SHT_STRTAB   3         /* String table                      */
+
+#define SHN_XINDEX   0xffff    /* Index is in extra table.          */
 
 typedef struct {
     u32 sh_name;               /* Section name (string tbl index)   */

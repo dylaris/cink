@@ -15,51 +15,47 @@ bool validate(const Object *obj)
 
 void parse_elf_header(Object *obj)
 {
-    obj->elf_header = *(ELFHeader *) obj->content;
+    obj->ehdr = *(ELFHeader *) obj->content;
 }
 
-void parse_section_header(Object *obj)
+void parse_section(Object *obj)
 {
-    /* collect section header and section content */
-    const char *section_header_table_offset = obj->content + obj->elf_header.e_shoff;
-    int num_sections = obj->elf_header.e_shnum;
-    for (int i = 0; i < num_sections; i++) {
-        ELFSectionHeader section_header = *(ELFSectionHeader *) section_header_table_offset;
-        Section section = {
-            .header = section_header,
-            .content = { .data = obj->content + section_header.sh_offset, .len = section_header.sh_size },
-        };
-        arrpush(obj->sections, section);
-        section_header_table_offset += sizeof(ELFSectionHeader);
+    const char *shoff = obj->content + obj->ehdr.e_shoff;
+    int nshdrs = obj->ehdr.e_shnum;
+
+    /* collect null section header */
+    ELFSectionHeader null_shdr = *(ELFSectionHeader *) shoff;
+    shoff += sizeof(ELFSectionHeader);
+    arrpush(obj->shdrs, null_shdr);
+
+    /* NOTE: If e_shnum == 0, the actual section count is stored
+       in the sh_size field of the null section header (section 0) */
+    if (nshdrs == 0) nshdrs = null_shdr.sh_size;
+
+    /* collect section header */
+    for (int i = 1; i < nshdrs; i++) {
+        ELFSectionHeader shdr = *(ELFSectionHeader *) shoff;
+        arrpush(obj->shdrs, shdr);
+        shoff += sizeof(ELFSectionHeader);
     }
 
-    /* collect string table (section and symbol) */
-    obj->section_string_table = obj->sections + obj->elf_header.e_shstrndx;
-    const Section *symbol_section = object_get_section_by_type(obj, SHT_SYMTAB);
-    obj->symbol_string_table = obj->sections + symbol_section->header.sh_link;
-
-    /* collect section name */
-    arrforeach(Section, obj->sections) {
-        const char *section_name = obj->section_string_table->content.data + it->header.sh_name;
-        it->name = svfromcstr(section_name);
-    }
-
-    /* collect symbol */
-    const char *symbol_table_offset = obj->content + symbol_section->header.sh_offset;
-    int num_symbols = symbol_section->header.sh_size / sizeof(ELFSymbol);
-    for (int i = 0; i < num_symbols; i++) {
-        ELFSymbol symbol_header = *(ELFSymbol *) symbol_table_offset;
-        const char *symbol_name = obj->symbol_string_table->content.data + symbol_header.st_name;
-        Symbol symbol = {
-            .header = symbol_header,
-            .name = svfromcstr(symbol_name),
-        };
-        arrpush(obj->symbols, symbol);
-        symbol_table_offset += sizeof(ELFSymbol);
-    }
+    /* NOTE: If e_shstrndex == SHN_XINDEX, the actual section header string table index
+       is stored in the sh_link field of the null section header (section 0) */
+    int shstridx = obj->ehdr.e_shstrndx == SHN_XINDEX ? null_shdr.sh_link : obj->ehdr.e_shstrndx;
+    obj->shstroff = obj->content + obj->shdrs[shstridx].sh_offset;
 }
 
 void parse_symbol(Object *obj)
 {
-    (void) obj;
+    /* collect symbol */
+    const ELFSectionHeader *symsechdr = object_get_shdr(obj, SHT_SYMTAB);
+    assert(symsechdr);
+    const char *symoff = obj->content + symsechdr->sh_offset;
+    obj->symstroff = obj->content + obj->shdrs[symsechdr->sh_link].sh_offset;
+    int nsyms = symsechdr->sh_size / sizeof(ELFSymbol);
+    for (int i = 0; i < nsyms; i++) {
+        ELFSymbol sym = *(ELFSymbol *) symoff;
+        arrpush(obj->syms, sym);
+        symoff += sizeof(ELFSymbol);
+    }
 }
